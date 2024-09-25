@@ -1,0 +1,26 @@
+name: Deploy Code On smater server
+
+on:
+  push:
+    branches:
+      - dev
+
+
+jobs:
+  build-and-deploy-live-main-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/dev'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Smater hosting server
+        run: |
+          sudo apt-get install -y lftp
+          lftp -u ${{ secrets.USERNAME }},${{ secrets.PASSWORD }} -e "set ssl:verify-certificate no; mirror -R * ." ${{ secrets.HOSTNAME }}
+        env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          HOSTNAME: ${{ secrets.HOSTNAME }}
