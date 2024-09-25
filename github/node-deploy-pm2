@@ -1,0 +1,37 @@
+name: Deploy Node.js project with Pm2
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy-dev-server:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Deploy to test server
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
+        with:
+          pass: ${{ secrets.PASSWORD }}
+          user: ${{ secrets.USERNAME }}
+          host: ${{ secrets.HOSTNAME }}
+          scp: |
+            './src/*' => /home/devnet/coinbucknode/src
+            'package.json' => /home/devnet/coinbucknode
+            'index.js' => /home/devnet/coinbucknode
+        
+      - name: Start application with PM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            cd /home/devnet/coinbucknode
+            npm i -f
+            pm2 restart coinbucknode
