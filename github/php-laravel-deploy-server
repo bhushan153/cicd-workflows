@@ -1,0 +1,29 @@
+name: Laravel deployment
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+
+  laravel-deploy-dev-server:
+    name: Deploy to Dev Server
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to Dev server 
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          user: ${{ secrets.USERNAME }}
+          pass: ${{ secrets.PASSWORD }}
+          scp: |
+            './app/*' => /var/www/html/gurujisite/api/app
+            './routes/*' => /var/www/html/gurujisite/api/routes
+            './resources/*' => /var/www/html/gurujisite/api/resources
