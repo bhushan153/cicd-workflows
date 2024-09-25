@@ -1,0 +1,43 @@
+name: Deploy Code On server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy-live-main-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18.x'
+
+      - name: Cache dependencies
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.npm
+            ./node_modules
+          key: ${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm install -f
+
+      - name: Build the app
+        run: npm run production
+
+      - name: Deploy to Shere hosting server
+        run: |
+          sudo apt-get install -y lftp
+          lftp -u ${{ secrets.USERNAME }},${{ secrets.PASSWORD }} -e "set ssl:verify-certificate no; mirror -R ./dist ./admin" ${{ secrets.HOSTNAME }}
+        env:
+          USERNAME: ${{ secrets.USERNAME }}
+          PASSWORD: ${{ secrets.PASSWORD }}
+          HOSTNAME: ${{ secrets.HOSTNAME }}
