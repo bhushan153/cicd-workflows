@@ -1,0 +1,192 @@
+name: Deploy Node.js project with Pm2
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+      - cronandbot
+
+jobs:
+  deploy-main-server:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to all server folders
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
+        with:
+          pass: ${{ secrets.PASSWORD }}
+          user: ${{ secrets.USERNAME }}
+          host: ${{ secrets.HOSTNAME }}
+          scp: |
+            './src/*' => /home/minefish/minefishnode_1/src
+            'package.json' => /home/minefish/minefishnode_1
+            'index.js' => /home/minefish/minefishnode_1
+            './src/*' => /home/minefish/minefishnode_2/src
+            'package.json' => /home/minefish/minefishnode_2
+            'index.js' => /home/minefish/minefishnode_2
+            './src/*' => /home/minefish/minefishnode_3/src
+            'package.json' => /home/minefish/minefishnode_3
+            'index.js' => /home/minefish/minefishnode_3
+            './src/*' => /home/minefish/minefishnode_4/src
+            'package.json' => /home/minefish/minefishnode_4
+            'index.js' => /home/minefish/minefishnode_4
+      - name: Modify index.js in all folders
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+                # Function to comment out specific lines if they are uncommented
+                comment_lines() {
+                  sed -i 's|^require(\x27./src/contract/index\x27);|// require(\x27./src/contract/index\x27);|' "$1"
+                  sed -i 's|^require(\x27./src/cronJob/cron\x27);|// require(\x27./src/cronJob/cron\x27);|' "$1"
+                  sed -i 's|^require(\x27./src/bot/bot\x27);|// require(\x27./src/bot/bot\x27);|' "$1"
+                }
+      
+                # Check and comment lines in minefishnode1
+                comment_lines "/home/minefish/minefishnode_1/index.js"
+                
+                # Check and comment lines in minefishnode2
+                comment_lines "/home/minefish/minefishnode_2/index.js"
+                
+                # Check and comment lines in minefishnode3
+                comment_lines "/home/minefish/minefishnode_3/index.js"
+                
+                # Check and comment lines in minefishnode4
+                comment_lines "/home/minefish/minefishnode_4/index.js"
+      - name: Comment out lines in user.controller.js for all servers
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+                # Function to comment out lines in user.controller.js
+                comment_lines_in_controller() {
+                  sed -i 's|^const { sendTelegramMessage } = require("../bot/bot");|// const { sendTelegramMessage } = require("../bot/bot");|' "$1"
+                  sed -i 's|^await sendTelegramMessage(telegramId);|// await sendTelegramMessage(telegramId);|' "$1"
+                }
+
+                # Check and comment lines in all user.controller.js files
+                comment_lines_in_controller "/home/minefish/minefishnode_1/src/controller/user.controller.js"
+                comment_lines_in_controller "/home/minefish/minefishnode_2/src/controller/user.controller.js"
+                comment_lines_in_controller "/home/minefish/minefishnode_3/src/controller/user.controller.js"
+                comment_lines_in_controller "/home/minefish/minefishnode_4/src/controller/user.controller.js"
+
+
+
+
+      - name: Install dependencies and start application with PM2 for all folders
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            # Restart for minefishnode1
+            cd /home/minefish/minefishnode_1
+            npm i -f
+            pm2 restart minefishnode1
+            # Restart for minefishnode2
+            cd /home/minefish/minefishnode_2
+            npm i -f
+            pm2 restart minefishnode2
+            # Restart for minefishnode3
+            cd /home/minefish/minefishnode_3
+            npm i -f
+            pm2 restart minefishnode3
+            # Restart for minefishnode_4
+            cd /home/minefish/minefishnode4
+            npm i -f
+            pm2 restart minefishnode4
+  deploy-dev-server:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Deploy to Dev server
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
+        with:
+          pass: ${{ secrets.DPASSWORD }}
+          user: ${{ secrets.DUSERNAME }}
+          host: ${{ secrets.DHOSTNAME }}
+          scp: |
+            './src/*' => /home/devnet/fishingnode/src
+            'package.json' => /home/devnet/fishingnode
+            'index.js' => /home/devnet/fishingnode
+
+        
+      - name: Start application with PM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.DHOSTNAME }}
+          username: ${{ secrets.DUSERNAME }}
+          password: ${{ secrets.DPASSWORD }}
+          script: |
+            cd /home/devnet/fishingnode
+            npm i -f
+            pm2 restart fishingnode
+  deploy-cronandbot-server:
+    if: github.ref == 'refs/heads/cronandbot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Deploy to cronandbot server
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
+        with:
+          pass: ${{ secrets.PASSWORD }}
+          user: ${{ secrets.USERNAME }}
+          host: ${{ secrets.HOSTNAME }}
+          scp: |
+            './src/*' => /home/minefish/minefishnode/src
+            'package.json' => /home/minefish/minefishnode
+            'index.js' => /home/minefish/minefishnode
+
+      - name: Ensure index.js has correct comment/uncomment state
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            # Ensure require("./src/contract/index"); is commented
+            sed -i 's|^require(\x27./src/contract/index\x27);|// require(\x27./src/contract/index\x27);|' /home/minefish/minefishnode/index.js
+
+            # Ensure require("./src/cronJob/cron"); is uncommented
+            sed -i 's|^// require(\x27./src/cronJob/cron\x27);|require(\x27./src/cronJob/cron\x27);|' /home/minefish/minefishnode/index.js
+
+            # Ensure require('./src/bot/bot') is uncommented
+            sed -i 's|^// require(\x27./src/bot/bot\x27);|require(\x27./src/bot/bot\x27);|' /home/minefish/minefishnode/index.js
+            # Ensure const { sendTelegramMessage } = require('../bot/bot'); is uncomment.
+            sed -i 's|^// const { sendTelegramMessage } = require("../bot/bot");|const { sendTelegramMessage } = require("../bot/bot");|' /home/minefish/minefishnode/src/controller/user.controller.js
+
+            # Ensure await sendTelegramMessage(telegramId); is uncomment.
+            sed -i 's|^// await sendTelegramMessage(telegramId);|await sendTelegramMessage(telegramId);|' /home/minefish/minefishnode/src/controller/user.controller.js
+
+
+
+      - name: Install dependencies and start application with PM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTNAME }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          script: |
+            cd /home/minefish/minefishnode
+            npm i -f
+            pm2 restart minefishnode
+  
