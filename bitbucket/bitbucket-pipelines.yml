@@ -1,0 +1,36 @@
+image: ubuntu:22.04  # Use the latest Ubuntu LTS version
+
+pipelines:
+  branches:
+    main:  # This workflow will trigger on pushes to the main branch
+      - step:
+          name: Build and Deploy
+          caches:
+            - node
+          script:
+            # Update package list and install required tools
+            - apt-get update && apt-get install -y curl rsync sshpass openssh-client
+
+            # Install Node.js (using NodeSource setup script for Node.js 18)
+            - curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            - apt-get install -y nodejs
+            # Verify Node.js and npm installation
+            - node -v
+            - npm -v
+
+            # Clean up node_modules and package-lock.json
+            - rm -rf node_modules package-lock.json
+
+            # Build the React application
+            - npm run production
+
+            # Deploy the dist folder to the Ubuntu server using rsync over SSH
+            - rsync -avz --delete -e "sshpass -p $SUDOPASS ssh -o StrictHostKeyChecking=no" ./dist/ $SUDOUSER@$SERVER:$TEMP_DIR
+
+          artifacts:
+            - dist/**  # Optional: Save the dist folder as an artifact
+
+# Environment variables (configure these in Bitbucket Pipelines settings)
+# SSH_USER: Your SSH username
+# SSH_PASSWORD: Your SSH password
+# SSH_HOST: Your server's hostname or IP address
